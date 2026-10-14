@@ -34,9 +34,9 @@ for generation in one or a few steps. This repository provides the
 **Lightning-DiT / ImageNet 256×256** implementation and the recipe for
 **checkpoint-best**.
 
-- **Data-free training:** a frozen teacher and a trainable student, with noise and class labels sampled online.
-- **One-step generation:** the public inference code reproduces **2.04 FID** on 50,000 images.
-- **Flexible sampling:** one checkpoint supports **1, 2, 4, 8, 16, 32, or 64** Euler steps, with one model call per step.
+- **Data-free+Simulation-free training:** a frozen teacher and a trainable student, with noise and class labels sampled online.
+- **One-step generation:** the public inference code reproduces **2.04 FID** on imagenet 50K images.
+- **Flexible sampling:** high quality in a single step, with multi-step sampling available for inference-time steering such as reward alignment and tilt matching.
 
 The student always uses **`gw=2.0`** during training and inference. Its learned
 constant embedding is preserved in the model; there is no guidance value to tune.
@@ -218,9 +218,9 @@ omits local asset and checkpoint paths; explicit parent-run links are retained.
 - [x] ~~Paper and project page~~
 - [x] ~~Lightning-DiT training code~~
 - [x] ~~Sampling and FID/IS evaluation code~~
+- [x] ~~Make the GitHub repository public~~s
 - [ ] Upload checkpoint-best to Hugging Face
 - [ ] Add the checkpoint download link and update the Hugging Face badge
-- [ ] Make the GitHub repository public
 
 ## 🎉 Acknowledgements and License
 
