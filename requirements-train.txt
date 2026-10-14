@@ -1,0 +1,13 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.9.0+cu128
+torchvision==0.24.0+cu128
+numpy==2.4.4
+scipy==1.17.1
+timm==0.6.13
+Pillow==10.4.0
+accelerate==1.14.0
+ema-pytorch==0.8.3
+safetensors==0.7.0
+huggingface-hub==0.34.5
+PyYAML==6.0.2
+torch-fidelity @ https://github.com/LTH14/torch-fidelity/archive/bfe72b995473e4fee9351705d7b005f17442a4ca.tar.gz

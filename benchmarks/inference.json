@@ -1,0 +1,106 @@
+{
+  "checkpoint_step": 46000,
+  "protocol": {
+    "batch_size_per_rank": 32,
+    "class_policy": "global_sample_index_mod_num_classes",
+    "cudnn_allow_tf32": true,
+    "decode_batch_size": 32,
+    "ema": {
+      "format_version": 1,
+      "gammas": [
+        16.972198602303447,
+        1.8262137798958404
+      ],
+      "implementation": "ema_pytorch.PostHocEMA",
+      "num_updates": 46000,
+      "reporting_index": 1,
+      "sigma_rels": [
+        0.05,
+        0.2
+      ],
+      "start_step": 0,
+      "training_step": 46000,
+      "update_every": 1
+    },
+    "fid_covariance_dtype": "float64",
+    "fid_mean_dtype": "float32",
+    "guidance": 2.0,
+    "latent_shape": [
+      32,
+      16,
+      16
+    ],
+    "matmul_allow_tf32": false,
+    "metric_backend": "torch_fidelity",
+    "mode": "euler",
+    "model_dtype": "bfloat16",
+    "name": "datafree_facm",
+    "nfe": 8,
+    "noise_policy": "per_sample_index_and_stream",
+    "num_classes": 1000,
+    "num_samples": 50000,
+    "pixel_conversion": "round_clamp_uint8_png",
+    "resolution": 256,
+    "seed": 0,
+    "steps": 8,
+    "vae_dtype": "float32",
+    "weights": "posthoc",
+    "world_size": 2,
+    "fid_reference": "fid-50k-256.npz",
+    "metric_commit": "bfe72b995473e4fee9351705d7b005f17442a4ca"
+  },
+  "hardware": "2 NVIDIA A100 80GB PCIe",
+  "torch": "2.8.0+cu128",
+  "cuda": "12.8",
+  "results": [
+    {
+      "steps": 1,
+      "nfe": 1,
+      "fid": 2.035758223794346,
+      "inception_score_mean": 294.29902789350956,
+      "inception_score_std": 4.622128472962577
+    },
+    {
+      "steps": 2,
+      "nfe": 2,
+      "fid": 1.618454332137219,
+      "inception_score_mean": 311.7930176552331,
+      "inception_score_std": 5.211771181288442
+    },
+    {
+      "steps": 4,
+      "nfe": 4,
+      "fid": 1.3710637639260312,
+      "inception_score_mean": 307.3046211098124,
+      "inception_score_std": 4.847980762436787
+    },
+    {
+      "steps": 8,
+      "nfe": 8,
+      "fid": 1.2763951427676261,
+      "inception_score_mean": 313.45883058329775,
+      "inception_score_std": 4.54844689862913
+    },
+    {
+      "steps": 16,
+      "nfe": 16,
+      "fid": 1.3372074804289582,
+      "inception_score_mean": 320.4684988186718,
+      "inception_score_std": 4.359558177232066
+    },
+    {
+      "steps": 32,
+      "nfe": 32,
+      "fid": 1.3797731349676496,
+      "inception_score_mean": 319.23386184177957,
+      "inception_score_std": 4.02409743298732
+    },
+    {
+      "steps": 64,
+      "nfe": 64,
+      "fid": 1.3881084078786898,
+      "inception_score_mean": 319.51046421504293,
+      "inception_score_std": 3.987745412437617
+    }
+  ]
+}

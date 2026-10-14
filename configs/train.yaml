@@ -1,0 +1,19 @@
+# Fixed checkpoint-best objective; fresh training uses global batch 1024.
+teacher_checkpoint: cache/800ep-stg1.pt
+vae_checkpoint: cache/vavae-imagenet256-f16d32-dinov2.pt
+latent_stats_path: cache/latents_stats.pt
+ref_stats_path: cache/fid-50k-256.npz
+output_dir: outputs/train
+train_steps: 46000
+batch_size: 32
+global_batch_size: 1024
+seed: 42
+attn_func: fa2
+bf16: true
+learning_rate: 0.0001
+m_ratio: 0.5
+eval_every: 1000
+save_every: 1000
+eval_samples: 50000
+eval_batch_size: 32
+decode_batch_size: 32

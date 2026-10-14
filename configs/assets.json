@@ -1,0 +1,26 @@
+{
+  "repository": "Peterande/FACM",
+  "revision": "b7b5fee6d3f43347883d0fe6f9f357e3068375b8",
+  "files": {
+    "800ep-stg1.pt": {
+      "sha256": "b1ab4e903a0acd5998d0d55e09a925d87b0247f19c98ed93e5190b39406a7bf1",
+      "bytes": 2701335223,
+      "training_only": true
+    },
+    "vavae-imagenet256-f16d32-dinov2.pt": {
+      "sha256": "2088e07378d26047e7bfcbae669feb5d4eab37276f23621db3eebdacc7d82b6b",
+      "bytes": 2148559914,
+      "training_only": false
+    },
+    "latents_stats.pt": {
+      "sha256": "fb96ba21f7f423ae9b0d1e732b0eac16d386f0653bf21608df682138c2fa5ee7",
+      "bytes": 1788,
+      "training_only": false
+    },
+    "fid-50k-256.npz": {
+      "sha256": "51187a2152e0f5c44bdea844c667a888e9dab41f88095f8a3d8a93864ebff011",
+      "bytes": 33563124,
+      "training_only": false
+    }
+  }
+}
