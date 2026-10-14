@@ -12,6 +12,16 @@ attn_func: fa2
 bf16: true
 learning_rate: 0.0001
 m_ratio: 0.5
+# Normal parameters before sigmoid and sorting t <= r.
+t_logit_mean: -0.4
+t_logit_std: 1.0
+r_logit_mean: 1.2
+r_logit_std: 1.0
+# Teacher CFG inside the inclusive time interval; student gw stays fixed at 2.
+teacher_cfg_min: 0.125
+teacher_cfg_max: 1.0
+teacher_cfg_scale: 1.75
+teacher_cfg_outside_scale: 1.0
 eval_every: 1000
 save_every: 1000
 eval_samples: 50000

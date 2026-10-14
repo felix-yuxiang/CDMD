@@ -162,6 +162,12 @@ The default **`0.5`** preserves the checkpoint-best training behavior.
 NGPUS=8 bash scripts/train.sh --m-ratio 0.75
 ```
 
+The YAML also sets `t_logit_mean`, `t_logit_std`, `r_logit_mean`, and `r_logit_std`
+for the normal draws before sigmoid and sorting (`t <= r`). Teacher guidance uses `teacher_cfg_scale`
+inside the inclusive interval `[teacher_cfg_min, teacher_cfg_max]` and
+`teacher_cfg_outside_scale` outside it. The defaults preserve checkpoint-best
+training; student guidance remains fixed at `gw=2.0`.
+
 The released weights were trained through historical continuations with
 different batch sizes and hardware. This recipe preserves the architecture
 and objective, but does not reproduce that trajectory bitwise. Use the
@@ -176,7 +182,8 @@ calls use PyTorch SDPA. No separate FlashAttention package is required.
 hold the student, frozen teacher, training EMA, and VA-VAE decoder.
 
 Checkpoints save the optimizer, scheduler, training and reporting EMAs, and
-every rank's RNG state. Resume with the same GPU count, microbatch, and `m_ratio`:
+every rank's RNG state. Resume with the same GPU count, microbatch, `m_ratio`,
+time-sampling settings, and teacher guidance:
 
 ```bash
 NGPUS=8 bash scripts/train.sh \

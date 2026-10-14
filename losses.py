@@ -12,6 +12,34 @@ from torch import nn
 import torch.nn.functional as F
 
 
+LOSS_DEFAULTS = {
+    "t_logit_mean": -0.4, "t_logit_std": 1.0,
+    "r_logit_mean": 1.2, "r_logit_std": 1.0,
+    "teacher_cfg_min": 0.125, "teacher_cfg_max": 1.0,
+    "teacher_cfg_scale": 1.75, "teacher_cfg_outside_scale": 1.0,
+}
+
+
+def loss_settings(config):
+    """Read the configurable time draws and teacher CFG, with historical defaults."""
+    settings = {}
+    for key, default in LOSS_DEFAULTS.items():
+        value = config.get(key, default)
+        try:
+            valid = not isinstance(value, bool) and isinstance(value, Real) and math.isfinite(value)
+        except OverflowError:
+            valid = False
+        if not valid:
+            raise ValueError(f"{key} must be a finite number")
+        settings[key] = float(value)
+    for key in ("t_logit_std", "r_logit_std", "teacher_cfg_scale", "teacher_cfg_outside_scale"):
+        if settings[key] < 0:
+            raise ValueError(f"{key} must be nonnegative")
+    if not 0 <= settings["teacher_cfg_min"] <= settings["teacher_cfg_max"] <= 1:
+        raise ValueError("Require 0 <= teacher_cfg_min <= teacher_cfg_max <= 1")
+    return settings
+
+
 def validate_m_ratio(value):
     """Probability of selecting the independently noised training state."""
     if (isinstance(value, bool) or not isinstance(value, Real)
@@ -20,19 +48,22 @@ def validate_m_ratio(value):
     return float(value)
 
 
-def sample_times(batch_size, device):
+def sample_times(batch_size, device, *, t_logit_mean=-0.4, t_logit_std=1.0,
+                 r_logit_mean=1.2, r_logit_std=1.0):
     """Sorted logit-normal draws, preserving the reference RNG consumption."""
-    t = torch.sigmoid(torch.randn(batch_size, device=device) - 0.4).clamp(0, 1)
-    r = torch.sigmoid(torch.randn(batch_size, device=device) + 1.2).clamp(0, 1)
+    t = torch.sigmoid(torch.randn(batch_size, device=device) * t_logit_std + t_logit_mean).clamp(0, 1)
+    r = torch.sigmoid(torch.randn(batch_size, device=device) * r_logit_std + r_logit_mean).clamp(0, 1)
     t, r = torch.minimum(t, r), torch.maximum(t, r)
     # Preserve the draw consumed by the original ratio=1 (always false) mask.
     torch.rand(batch_size, device=device)
     return t.view(-1, 1, 1, 1), r.view(-1, 1, 1, 1)
 
 
-def teacher_velocity(teacher, x, t, labels, num_classes=1000):
-    """Teacher CFG 1.75 on native time [0.125, 1], otherwise CFG 1."""
-    guidance = torch.where((t >= 0.125) & (t <= 1.0), 1.75, 1.0)
+def teacher_velocity(teacher, x, t, labels, num_classes=1000, *, teacher_cfg_min=0.125,
+                     teacher_cfg_max=1.0, teacher_cfg_scale=1.75, teacher_cfg_outside_scale=1.0):
+    """Apply teacher CFG inside an inclusive native-time interval and outside it."""
+    guidance = torch.where((t >= teacher_cfg_min) & (t <= teacher_cfg_max),
+                           teacher_cfg_scale, teacher_cfg_outside_scale)
     combined = teacher(
         torch.cat([x, x]), torch.cat([t, t]),
         y=torch.cat([labels, torch.full_like(labels, num_classes)]),
@@ -59,9 +90,15 @@ def anchored_loss(u, fm_prediction, velocity, dudt, t, r, epsilon=0.001):
 class ConsistentDMDLoss(nn.Module):
     """Data-free objective: current-student states and a frozen LDiT teacher."""
 
-    def __init__(self, teacher, *, bf16=True, num_classes=1000, m_ratio=0.5):
+    def __init__(self, teacher, *, bf16=True, num_classes=1000, m_ratio=0.5, **settings):
         super().__init__()
         self.m_ratio = validate_m_ratio(m_ratio)
+        unknown = settings.keys() - LOSS_DEFAULTS.keys()
+        if unknown:
+            raise TypeError(f"Unknown loss settings: {sorted(unknown)}")
+        settings = loss_settings(settings)
+        self.time_sampling = {key: value for key, value in settings.items() if not key.startswith("teacher_")}
+        self.teacher_guidance = {key: value for key, value in settings.items() if key.startswith("teacher_")}
         self.teacher = teacher.eval().requires_grad_(False)
         self.bf16 = bf16
         self.num_classes = num_classes
@@ -74,7 +111,7 @@ class ConsistentDMDLoss(nn.Module):
     def forward(self, student, noise, labels):
         raw_student = student.module if hasattr(student, "module") else student
         batch_size = noise.shape[0]
-        t, r = sample_times(batch_size, noise.device)
+        t, r = sample_times(batch_size, noise.device, **self.time_sampling)
         zeros = torch.zeros(batch_size, device=noise.device)
         ones = torch.ones(batch_size, device=noise.device)
         with torch.no_grad(), self.autocast(noise.device):
@@ -83,7 +120,8 @@ class ConsistentDMDLoss(nn.Module):
             xt_same = noise + t * raw_student(noise, zeros, r=t.flatten(), y=labels)[:, :noise.shape[1]]
             mixture_mask = torch.rand(batch_size, device=noise.device) < self.m_ratio
             xt = torch.where(mixture_mask.view(-1, 1, 1, 1), xt_new, xt_same)
-            velocity = teacher_velocity(self.teacher, xt, t.flatten(), labels, self.num_classes)
+            velocity = teacher_velocity(self.teacher, xt, t.flatten(), labels, self.num_classes,
+                                        **self.teacher_guidance)
 
         def student_fn(x, source_time, target_time):
             return raw_student(x, source_time, r=target_time, y=labels)[:, :noise.shape[1]]

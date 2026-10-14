@@ -12,7 +12,7 @@ from pathlib import Path
 import torch
 import yaml
 
-from losses import ConsistentDMDLoss, validate_m_ratio
+from losses import ConsistentDMDLoss, LOSS_DEFAULTS, loss_settings, validate_m_ratio
 from utils.ema import FACMEvaluationEMA, TrainingEMA
 
 
@@ -51,16 +51,19 @@ def load_config(path, overrides=None):
     if not isinstance(config, dict):
         raise ValueError("Training config must be a YAML mapping")
     config.setdefault("m_ratio", 0.5)
+    for key, default in LOSS_DEFAULTS.items():
+        config.setdefault(key, default)
     expected = {
         "teacher_checkpoint", "vae_checkpoint", "latent_stats_path", "ref_stats_path",
         "output_dir", "train_steps", "batch_size", "global_batch_size", "seed",
         "attn_func", "bf16", "learning_rate", "eval_every", "save_every",
         "eval_samples", "eval_batch_size", "decode_batch_size", "m_ratio",
-    }
+    } | LOSS_DEFAULTS.keys()
     if set(config) != expected:
         raise ValueError(f"Config keys differ: missing={sorted(expected-set(config))}, unknown={sorted(set(config)-expected)}")
     config.update({key: value for key, value in (overrides or {}).items() if value is not None})
     config["m_ratio"] = validate_m_ratio(config["m_ratio"])
+    config.update(loss_settings(config))
     if config["global_batch_size"] != GLOBAL_BATCH_SIZE:
         raise ValueError("The public training recipe fixes global_batch_size to 1024")
     for key in ("train_steps", "batch_size", "save_every", "eval_samples", "eval_batch_size", "decode_batch_size"):
@@ -85,6 +88,7 @@ def tracking_config(config, provenance):
               "learning_rate", "eval_every", "save_every", "eval_samples",
               "eval_batch_size", "decode_batch_size", "m_ratio")
     result = {key: config[key] for key in fields}
+    result.update(loss_settings(config))
     if provenance:
         result["continuation"] = {
             key: provenance[key] for key in
@@ -302,6 +306,10 @@ def resume_metadata(path, config, world_size):
         raise ValueError("Exact native resume requires the saved world size")
     if validate_m_ratio(metadata["config"].get("m_ratio", 0.5)) != validate_m_ratio(config.get("m_ratio", 0.5)):
         raise ValueError("Resume config differs for m_ratio")
+    saved_settings, current_settings = loss_settings(metadata["config"]), loss_settings(config)
+    for key in LOSS_DEFAULTS:
+        if saved_settings[key] != current_settings[key]:
+            raise ValueError(f"Resume config differs for {key}")
     # Output paths and total duration can change; the training stream cannot.
     for key in ("teacher_checkpoint", "batch_size", "global_batch_size", "seed", "attn_func", "bf16", "learning_rate",
                 "vae_checkpoint", "latent_stats_path", "ref_stats_path", "eval_samples", "decode_batch_size"):
@@ -438,7 +446,8 @@ def main():
     student = create_student(attn_func=config["attn_func"])
     student.load_teacher_core_state_dict_(torch.load(config["teacher_checkpoint"], map_location="cpu", weights_only=True, mmap=True))
     teacher = deepcopy(student.dit).to(accelerator.device).eval().requires_grad_(False)
-    objective = ConsistentDMDLoss(teacher, bf16=config["bf16"], m_ratio=config["m_ratio"])
+    objective = ConsistentDMDLoss(teacher, bf16=config["bf16"], m_ratio=config["m_ratio"],
+                                 **loss_settings(config))
     vae, mean, std = load_vae_and_stats(config["vae_checkpoint"], config["latent_stats_path"], accelerator.device)
     training_ema = TrainingEMA(student, device=accelerator.device)
     optimizer = torch.optim.AdamW(student.parameters(), lr=config["learning_rate"], betas=(0.9, 0.999), weight_decay=0.0)
